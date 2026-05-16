@@ -23,10 +23,11 @@ app = FastAPI(
         "REST under /api; SPA served at /."
     ),
 )
-
+from app.from_scratch.rate_limiter import RateLimiterMiddleware
 from app.telemetry import configure_prometheus_metrics
 
 configure_prometheus_metrics(app)
+app.add_middleware(RateLimiterMiddleware)
 
 
 class HealthResponse(BaseModel):
