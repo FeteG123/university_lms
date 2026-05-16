@@ -1,0 +1,16 @@
+# Production / VM: run API from the built image only (no bind mount over /app/app).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Keeps local dev workflow unchanged when you use docker-compose.yml alone.
+
+services:
+  api-1:
+    volumes:
+      - submission_data:/data/submissions
+  api-2:
+    volumes:
+      - submission_data:/data/submissions
+  worker:
+    volumes:
+      - submission_data:/data/submissions

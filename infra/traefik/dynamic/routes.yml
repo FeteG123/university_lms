@@ -1,0 +1,19 @@
+# Public HTTP router → load-balanced FastAPI replicas (api-1, api-2).
+# VM deploy: add your DNS name or public IP, e.g.
+#   || Host(`lms.example.edu`) || Host(`203.0.113.10`)
+# See docs/DEPLOY_VM.md
+
+http:
+  routers:
+    lms-http:
+      rule: Host(`localhost`) || Host(`127.0.0.1`)
+      entryPoints:
+        - web
+      service: lms-api
+
+  services:
+    lms-api:
+      loadBalancer:
+        servers:
+          - url: http://api-1:8000
+          - url: http://api-2:8000
