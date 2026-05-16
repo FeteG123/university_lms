@@ -6,7 +6,7 @@
 http:
   routers:
     lms-http:
-      rule: Host(`localhost`) || Host(`127.0.0.1`)
+      rule: Host(`localhost`) || Host(`127.0.0.1`)|| Host(`161.35.127.58`)|| Host(`university-lms.mooo.com`)
       entryPoints:
         - web
       service: lms-api
