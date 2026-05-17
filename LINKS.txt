@@ -1,4 +1,4 @@
-Deployed URL: http://university-lms.mooo.com
+Deployed URL: https://university-lms.mooo.com
 GitHub URL: https://github.com/FeteG123/university_lms
 Team:
 - Person 1 - Data model, migrations
