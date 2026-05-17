@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.auth import roles
 from app.auth.deps import CurrentUser, get_current_user, require_roles
@@ -29,6 +29,7 @@ class CourseCreate(BaseModel):
     code: str = Field(..., min_length=2, max_length=32)
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = None
+    instructor_id: int = Field(..., ge=1, description="Assigned professor (lecturer user id)")
 
 
 class CourseOut(BaseModel):
@@ -37,6 +38,7 @@ class CourseOut(BaseModel):
     title: str
     description: str | None
     instructor_id: int
+    instructor_name: str
 
     model_config = {"from_attributes": True}
 
@@ -72,6 +74,13 @@ class EnrollmentResultOut(BaseModel):
     status: str
 
 
+class EnrolledStudentOut(BaseModel):
+    user_id: int
+    email: str
+    full_name: str
+    enrolled_at: datetime
+
+
 class LectureMessageOut(BaseModel):
     id: int
     user: str
@@ -80,13 +89,43 @@ class LectureMessageOut(BaseModel):
     is_pinned: bool = False
 
 
+def _course_out(course: Course) -> CourseOut:
+    name = course.instructor.full_name if course.instructor is not None else "—"
+    return CourseOut(
+        id=course.id,
+        code=course.code,
+        title=course.title,
+        description=course.description,
+        instructor_id=course.instructor_id,
+        instructor_name=name,
+    )
+
+
 def _courses_query(db: Session, user: CurrentUser):
+    base = select(Course).options(joinedload(Course.instructor)).order_by(Course.id.asc())
     if user.is_admin:
-        return select(Course).order_by(Course.id.asc())
+        return base
     if user.is_lecturer:
-        return select(Course).where(Course.instructor_id == user.id).order_by(Course.id.asc())
-    # Students: full catalog so they can open a course and self-enroll (see get_course).
-    return select(Course).order_by(Course.id.asc())
+        return base.where(Course.instructor_id == user.id)
+    return base
+
+
+def _resolve_instructor(db: Session, instructor_id: int) -> User:
+    instructor = db.get(User, instructor_id)
+    if instructor is None or not instructor.is_active:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "instructor not found")
+    if instructor.role != roles.LECTURER:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "instructor_id must reference an active user with role lecturer",
+        )
+    return instructor
+
+
+def _assert_course_staff(course: Course, user: CurrentUser) -> None:
+    if user.is_admin or course.instructor_id == user.id:
+        return
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "not allowed to manage this course")
 
 
 @router.get("", response_model=list[CourseOut])
@@ -100,10 +139,10 @@ def list_courses(
         cached = get_cached_course_list()
         if cached is not None:
             response.headers["X-Cache"] = "HIT"
-            return [CourseOut.model_validate(row) for row in cached]
+            return [CourseOut.model_validate(row) for row in cached]  # cache includes instructor_name
 
     rows = list(db.scalars(_courses_query(db, user)))
-    out = [CourseOut.model_validate(r) for r in rows]
+    out = [_course_out(r) for r in rows]
     if user.is_admin:
         payload: list[dict[str, Any]] = [o.model_dump(mode="json") for o in out]
         set_cached_course_list(payload)
@@ -115,27 +154,26 @@ def list_courses(
 def create_course(
     body: CourseCreate,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(roles.LECTURER, roles.ADMIN)),
-) -> Course:
+    _admin: CurrentUser = Depends(require_roles(roles.ADMIN)),
+) -> CourseOut:
     exists = db.execute(select(Course).where(Course.code == body.code)).scalar_one_or_none()
     if exists is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "course code already exists")
-    instructor_id = user.id if user.is_lecturer else user.id
-    if user.is_admin:
-        instructor_id = user.id
+    instructor = _resolve_instructor(db, body.instructor_id)
     c = Course(
         code=body.code.strip(),
         title=body.title.strip(),
         description=body.description,
-        instructor_id=instructor_id,
+        instructor_id=instructor.id,
     )
     db.add(c)
     db.flush()
     ensure_room_for_course(db, c.id)
     db.commit()
     db.refresh(c)
+    c.instructor = instructor
     invalidate_course_list_cache()
-    return c
+    return _course_out(c)
 
 
 @router.get("/{course_id}", response_model=CourseDetailOut)
@@ -144,15 +182,14 @@ def get_course(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> CourseDetailOut:
-    c = db.get(Course, course_id)
+    c = db.scalar(select(Course).options(joinedload(Course.instructor)).where(Course.id == course_id))
     if c is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "course not found")
 
-    if user.is_admin:
-        return CourseDetailOut(**CourseOut.model_validate(c).model_dump(), is_enrolled=True)
+    base = _course_out(c).model_dump()
 
-    if c.instructor_id == user.id:
-        return CourseDetailOut(**CourseOut.model_validate(c).model_dump(), is_enrolled=True)
+    if user.is_admin or c.instructor_id == user.id:
+        return CourseDetailOut(**base, is_enrolled=True)
 
     if user.is_student:
         en = db.scalar(
@@ -161,7 +198,7 @@ def get_course(
                 Enrollment.course_id == course_id,
             )
         )
-        return CourseDetailOut(**CourseOut.model_validate(c).model_dump(), is_enrolled=en is not None)
+        return CourseDetailOut(**base, is_enrolled=en is not None)
 
     en = db.scalar(
         select(Enrollment).where(
@@ -171,7 +208,7 @@ def get_course(
     )
     if en is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "not enrolled")
-    return CourseDetailOut(**CourseOut.model_validate(c).model_dump(), is_enrolled=True)
+    return CourseDetailOut(**base, is_enrolled=True)
 
 
 @router.post(
@@ -214,6 +251,34 @@ def enroll(
     db.commit()
     db.refresh(e)
     return EnrollmentResultOut(enrollment_id=e.id, status="enrolled")
+
+
+@router.get("/{course_id}/enrollments", response_model=list[EnrolledStudentOut])
+def list_course_enrollments(
+    course_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> list[EnrolledStudentOut]:
+    c = db.get(Course, course_id)
+    if c is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "course not found")
+    _assert_course_staff(c, user)
+    stmt = (
+        select(Enrollment, User)
+        .join(User, Enrollment.user_id == User.id)
+        .where(Enrollment.course_id == course_id, User.role == roles.STUDENT)
+        .order_by(User.full_name.asc())
+    )
+    rows = db.execute(stmt).all()
+    return [
+        EnrolledStudentOut(
+            user_id=student.id,
+            email=student.email,
+            full_name=student.full_name,
+            enrolled_at=enrollment.created_at,
+        )
+        for enrollment, student in rows
+    ]
 
 
 @router.get("/{course_id}/lecture/messages", response_model=list[LectureMessageOut])
@@ -259,13 +324,13 @@ def create_assignment(
     course_id: int,
     body: AssignmentCreate,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(roles.LECTURER, roles.ADMIN)),
+    user: CurrentUser = Depends(require_roles(roles.LECTURER)),
 ) -> Assignment:
     c = db.get(Course, course_id)
     if c is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "course not found")
-    if not user.is_admin and c.instructor_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "not course instructor")
+    if c.instructor_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "only the assigned professor can manage assignments")
     a = Assignment(
         course_id=course_id,
         title=body.title.strip(),

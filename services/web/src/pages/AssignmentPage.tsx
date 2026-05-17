@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { apiGet, apiPost, apiPostForm, type GradeRow, type Submission } from "../api";
+import { apiGet, apiPost, apiPostForm, type AssignmentContext, type GradeRow, type Submission } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { usePositiveIntParam } from "../App";
+
+function formatSubmittedAt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export function AssignmentPage() {
   const assignmentId = usePositiveIntParam("assignmentId");
@@ -15,7 +26,11 @@ export function AssignmentPage() {
 function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
   const { user } = useAuth();
   const isStudent = user?.role === "student";
-  const isStaff = user?.role === "lecturer" || user?.role === "admin";
+  const [assignment, setAssignment] = useState<AssignmentContext | null>(null);
+  const canGrade =
+    user?.role === "lecturer" &&
+    assignment != null &&
+    assignment.instructor_id === user.id;
   const [subs, setSubs] = useState<Submission[]>([]);
   const [body, setBody] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -26,7 +41,11 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
   const [gradeScore, setGradeScore] = useState<Record<number, string>>({});
   const [gradeFeedback, setGradeFeedback] = useState<Record<number, string>>({});
   async function reload() {
-    const list = await apiGet<Submission[]>(`/assignments/${assignmentId}/submissions`);
+    const [ctx, list] = await Promise.all([
+      apiGet<AssignmentContext>(`/assignments/${assignmentId}`),
+      apiGet<Submission[]>(`/assignments/${assignmentId}/submissions`),
+    ]);
+    setAssignment(ctx);
     setSubs(list);
     const scores: Record<number, string> = {};
     const feedback: Record<number, string> = {};
@@ -40,6 +59,12 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
     }
     setGradeScore(scores);
     setGradeFeedback(feedback);
+    if (user?.role === "student" && list.length > 0) {
+      const mine = list[0];
+      setBody(mine.body_text ?? "");
+      setLastSubmissionId(mine.id);
+      setPoll(mine);
+    }
   }
 
   useEffect(() => {
@@ -93,20 +118,18 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
     setErr(null);
     try {
       let s: Submission;
-      if (file) {
-        const form = new FormData();
-        if (text) {
-          form.append("body_text", text);
-        }
-        form.append("file", file);
-        s = await apiPostForm<Submission>(`/assignments/${assignmentId}/submissions`, form);
-      } else {
-        s = await apiPost<Submission>(`/assignments/${assignmentId}/submissions`, { body_text: text });
+      const form = new FormData();
+      if (text) {
+        form.append("body_text", text);
       }
-      setBody("");
+      if (file) {
+        form.append("file", file);
+      }
+      s = await apiPostForm<Submission>(`/assignments/${assignmentId}/submissions`, form);
       setFile(null);
       setLastSubmissionId(s.id);
       setPoll(s);
+      setOkMsg(s.replaced ? "Your submission was updated with a new timestamp." : "Submitted successfully.");
       await reload();
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : "Submit failed");
@@ -138,14 +161,21 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
     }
   }
 
+  const hasSubmission = isStudent && subs.length > 0;
+  const showStudentNames = !isStudent;
+
   return (
-    <div>
+    <div className="page-stack">
       {err ? <p className="err">{err}</p> : null}
-      {okMsg ? <p className="muted" style={{ color: "var(--ok)" }}>{okMsg}</p> : null}
+      {okMsg ? <p className="ok-msg">{okMsg}</p> : null}
       {isStudent ? (
-        <div className="card" style={{ marginBottom: "1rem" }}>
+        <div className="card">
           <h2>Assignment #{assignmentId}</h2>
-          <p className="muted">Submit text and/or a file (.txt, .md, .csv, .json, .log, max 10 MB).</p>
+          <p className="muted">
+            {hasSubmission
+              ? "You already submitted once. Submit again to replace your answer (same assignment, updated time)."
+              : "Submit text and/or a file (.txt, .md, .csv, .json, .log, max 10 MB). One submission per assignment."}
+          </p>
           <form onSubmit={submit}>
             <div className="field">
               <label htmlFor="bd">Submission text (optional if file attached)</label>
@@ -161,12 +191,13 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
               />
             </div>
             <button type="submit" className="btn btn-primary">
-              Submit
+              {hasSubmission ? "Replace submission" : "Submit answer"}
             </button>
           </form>
           {lastSubmissionId != null && poll ? (
             <p className="muted" style={{ marginTop: "1rem" }}>
-              Public id <span className="mono">{poll.public_id}</span> · status{" "}
+              Submitted {formatSubmittedAt(poll.submitted_at)} · id{" "}
+              <span className="mono">{poll.public_id}</span> · status{" "}
               <span className="mono">{poll.plagiarism_status}</span>
               {poll.plagiarism_score != null ? ` · score ${poll.plagiarism_score}` : ""}
             </p>
@@ -174,13 +205,29 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
         </div>
       ) : null}
       <div className="card">
-        <h2>Submissions</h2>
+        <h2>{isStudent ? "Your submission" : "Submissions"}</h2>
         {subs.length === 0 ? <p className="muted">None yet.</p> : null}
         <ul className="list">
           {subs.map((s) => (
-            <li key={s.id} style={{ padding: "0.85rem" }}>
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="mono">#{s.public_id}</span>
+            <li key={s.id} className="list-item">
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  {showStudentNames && s.student_name ? (
+                    <p style={{ margin: "0 0 0.25rem", fontWeight: 600, color: "var(--brand)" }}>
+                      {s.student_name}
+                      {s.student_email ? (
+                        <span className="muted" style={{ fontWeight: 400, fontSize: "0.85rem" }}>
+                          {" "}
+                          · {s.student_email}
+                        </span>
+                      ) : null}
+                    </p>
+                  ) : null}
+                  <span className="mono">#{s.public_id}</span>
+                  <p className="muted" style={{ margin: "0.2rem 0 0", fontSize: "0.82rem" }}>
+                    Submitted {formatSubmittedAt(s.submitted_at)}
+                  </p>
+                </div>
                 <span className={`pill ${s.plagiarism_status === "completed" ? "pill-ok" : "pill-warn"}`}>
                   {s.plagiarism_status}
                   {s.plagiarism_score != null ? ` ${s.plagiarism_score}` : ""}
@@ -199,12 +246,12 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
                 </p>
               ) : null}
               {s.grade_score != null ? (
-                <p className="muted" style={{ margin: "0.25rem 0 0.5rem", color: "var(--ok)" }}>
-                  {isStaff ? "Grade recorded" : "Your grade"}: <strong>{s.grade_score}</strong>
+                <p className="ok-msg" style={{ marginTop: "0.5rem" }}>
+                  {isStudent ? "Your grade" : "Grade"}: <strong>{s.grade_score}</strong>
                   {s.grade_feedback ? ` — ${s.grade_feedback}` : ""}
                 </p>
               ) : null}
-              {isStaff ? (
+              {canGrade ? (
                 <div className="row" style={{ marginTop: "0.5rem", alignItems: "flex-end" }}>
                   <div className="field" style={{ marginBottom: 0, flex: "0 0 80px" }}>
                     <label>Score</label>
@@ -229,9 +276,9 @@ function AssignmentPageContent({ assignmentId }: { assignmentId: number }) {
           ))}
         </ul>
       </div>
-      <p style={{ marginTop: "1rem" }}>
-        <Link to="/">← Courses</Link>
-      </p>
+      <Link to="/" className="back-link">
+        ← Courses
+      </Link>
     </div>
   );
 }

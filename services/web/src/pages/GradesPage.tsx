@@ -57,7 +57,7 @@ function GradesPageContent({ courseId }: { courseId: number }) {
   const canExport = user?.role === "lecturer" || user?.role === "admin";
 
   return (
-    <div>
+    <div className="page-stack">
       <div className="card">
         <h2>Grades</h2>
         {err ? <p className="err">{err}</p> : null}
@@ -96,9 +96,9 @@ function GradesPageContent({ courseId }: { courseId: number }) {
           </button>
         ) : null}
       </div>
-      <p style={{ marginTop: "1rem" }}>
-        <Link to={`/courses/${courseId}`}>← Back to course</Link>
-      </p>
+      <Link to={`/courses/${courseId}`} className="back-link">
+        ← Back to course
+      </Link>
     </div>
   );
 }

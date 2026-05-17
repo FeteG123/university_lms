@@ -1,5 +1,6 @@
-import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import { BrandIcon } from "./components/BrandIcon";
 import { CoursesPage } from "./pages/CoursesPage";
 import { CoursePage } from "./pages/CoursePage";
 import { AssignmentPage } from "./pages/AssignmentPage";
@@ -22,7 +23,11 @@ export function usePositiveIntParam(key: "courseId" | "assignmentId"): number {
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) {
-    return <p className="muted">Loading session…</p>;
+    return (
+      <div className="card loading-state">
+        <p className="muted">Loading session…</p>
+      </div>
+    );
   }
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -32,86 +37,115 @@ function Protected({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { user, logout } = useAuth();
+  const { pathname } = useLocation();
+  const isLoginPage = pathname === "/login";
 
-  return (
-    <div className="shell">
-      <header className="top">
-        <Link to="/" className="brand">
-          <span className="brand-mark" />
-          LMS Lite
-        </Link>
-        <nav className="nav">
-          {user ? (
-            <>
-              <span className="muted" style={{ fontSize: "0.9rem" }}>
-                {user.full_name} ({user.role})
-              </span>
-              <Link to="/">Courses</Link>
-              {user.role === "admin" ? <Link to="/admin/users">Users</Link> : null}
-              <button type="button" className="btn" onClick={logout}>
-                Log out
-              </button>
-            </>
-          ) : null}
-          <a href="/docs" target="_blank" rel="noreferrer">
-            API docs
-          </a>
-        </nav>
-      </header>
-      <main className="main">
+  if (isLoginPage) {
+    return (
+      <div className="app-auth">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/"
-            element={
-              <Protected>
-                <CoursesPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/courses/:courseId"
-            element={
-              <Protected>
-                <CoursePage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/courses/:courseId/lecture"
-            element={
-              <Protected>
-                <LecturePage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/courses/:courseId/grades"
-            element={
-              <Protected>
-                <GradesPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/assignments/:assignmentId"
-            element={
-              <Protected>
-                <AssignmentPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <Protected>
-                <AdminUsersPage />
-              </Protected>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-shell">
+      <div className="app-shell__bg" aria-hidden>
+        <div className="app-shell__orb app-shell__orb--1" />
+        <div className="app-shell__orb app-shell__orb--2" />
+      </div>
+
+      <div className="app-shell__inner">
+        <header className="top">
+          <Link to="/" className="brand">
+            <span className="brand-mark">
+              <BrandIcon size={20} />
+            </span>
+            Student LMS
+          </Link>
+          <nav className="nav">
+            {user ? (
+              <>
+                <span className="nav-user">
+                  {user.full_name} · {user.role}
+                </span>
+                <NavLink to="/" end className={({ isActive }) => (isActive ? "nav-active" : undefined)}>
+                  Courses
+                </NavLink>
+                {user.role === "admin" ? (
+                  <NavLink to="/admin/users" className={({ isActive }) => (isActive ? "nav-active" : undefined)}>
+                    Users
+                  </NavLink>
+                ) : null}
+                <button type="button" className="btn" onClick={logout}>
+                  Log out
+                </button>
+              </>
+            ) : null}
+            <a href="/docs" target="_blank" rel="noreferrer">
+              API docs
+            </a>
+          </nav>
+        </header>
+
+        <main className="main">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <Protected>
+                  <CoursesPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/courses/:courseId"
+              element={
+                <Protected>
+                  <CoursePage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/courses/:courseId/lecture"
+              element={
+                <Protected>
+                  <LecturePage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/courses/:courseId/grades"
+              element={
+                <Protected>
+                  <GradesPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/assignments/:assignmentId"
+              element={
+                <Protected>
+                  <AssignmentPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <Protected>
+                  <AdminUsersPage />
+                </Protected>
+              }
+            />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 }

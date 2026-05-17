@@ -104,6 +104,14 @@ export type Course = {
   title: string;
   description: string | null;
   instructor_id: number;
+  instructor_name: string;
+};
+
+export type EnrolledStudent = {
+  user_id: number;
+  email: string;
+  full_name: string;
+  enrolled_at: string;
 };
 
 /** From GET /courses/{id} — includes self-enrollment state for students. */
@@ -117,12 +125,24 @@ export type Assignment = {
   due_at: string | null;
 };
 
+/** GET /assignments/{id} — includes instructor_id for grading permissions. */
+export type AssignmentContext = {
+  id: number;
+  course_id: number;
+  title: string;
+  instructor_id: number;
+};
+
 export type Submission = {
   id: number;
   /** Snowflake ID — always use as string in URLs (JSON may serialize as string). */
   public_id: string;
   assignment_id: number;
   student_id: number;
+  student_name: string | null;
+  student_email: string | null;
+  submitted_at: string;
+  replaced?: boolean;
   body_text: string | null;
   file_name: string | null;
   file_size_bytes: number | null;

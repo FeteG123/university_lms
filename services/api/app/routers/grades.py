@@ -101,7 +101,7 @@ def _grade_rows_for_course(db: Session, course_id: int, student_id: int | None) 
 def grade_submission(
     body: GradeCreateIn,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(require_roles(roles.LECTURER, roles.ADMIN)),
+    user: CurrentUser = Depends(require_roles(roles.LECTURER)),
 ) -> GradeOut:
     submission_id = body.submission_id
     sub = db.scalar(
@@ -114,8 +114,11 @@ def grade_submission(
     course = db.get(Course, sub.assignment.course_id)
     if course is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "course not found")
-    if not user.is_admin and course.instructor_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "not course instructor")
+    if course.instructor_id != user.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "only the assigned professor can grade submissions",
+        )
 
     existing = db.scalar(select(Grade).where(Grade.submission_id == submission_id))
     if existing is not None:
@@ -180,7 +183,10 @@ def export_course_grades_csv(
 
     rows = _grade_rows_for_course(db, course_id, None)
     buf = io.StringIO()
-    writer = csv.writer(buf)
+    # Excel (esp. non-US locales) may treat comma-separated rows as a single column unless
+    # sep= is set and fields with commas are quoted.
+    buf.write("sep=,\r\n")
+    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
     writer.writerow(
         [
             "course_code",
@@ -208,10 +214,9 @@ def export_course_grades_csv(
                 r.feedback or "",
             ]
         )
-    content = buf.getvalue()
     filename = f"grades_{course.code}.csv"
     return Response(
-        content=content,
-        media_type="text/csv",
+        content=buf.getvalue().encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
+import { BrandIcon } from "../components/BrandIcon";
 import { useAuth } from "../auth/AuthContext";
+import "./LoginPage.css";
 
 export function LoginPage() {
   const { user, login } = useAuth();
-  const [email, setEmail] = useState("student@example.edu");
-  const [password, setPassword] = useState("demo1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -20,35 +22,78 @@ export function LoginPage() {
     try {
       await login(email, password);
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : "Login failed");
+      setErr(ex instanceof Error ? ex.message : "Sign in failed. Check your email and password.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="card login-card">
-      <h2>Sign in</h2>
-      <p className="muted">
-        Demo: <code className="mono">student@example.edu</code>,{" "}
-        <code className="mono">instructor@example.edu</code>, <code className="mono">admin@example.edu</code>
-        <br />
-        Password <code className="mono">demo1234</code>
-      </p>
-      <form onSubmit={onSubmit}>
-        <div className="field">
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <div className="login-page">
+      <div className="login-page__bg" aria-hidden>
+        <div className="login-page__orb login-page__orb--1" />
+        <div className="login-page__orb login-page__orb--2" />
+        <div className="login-page__orb login-page__orb--3" />
+      </div>
+
+      <div className="login-page__card">
+        <div className="login-page__icon">
+          <BrandIcon size={28} />
         </div>
-        <div className="field">
-          <label htmlFor="pw">Password</label>
-          <input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        {err ? <p className="err">{err}</p> : null}
-        <button type="submit" className="btn btn-primary" disabled={busy} style={{ width: "100%", marginTop: "0.5rem" }}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+
+        <h1 className="login-page__title">Sign In</h1>
+        <p className="login-page__subtitle">
+          Access your courses, assignments, and academic dashboard
+        </p>
+
+        <form className="login-page__form" onSubmit={onSubmit} noValidate>
+          <div className="login-page__field">
+            <label className="login-page__label" htmlFor="email">
+              Email Address
+            </label>
+            <input
+              id="email"
+              className="login-page__input"
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="you@university.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={busy}
+            />
+          </div>
+
+          <div className="login-page__field">
+            <label className="login-page__label" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              className="login-page__input"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={busy}
+            />
+          </div>
+
+          {err ? (
+            <p className="login-page__error" role="alert">
+              {err}
+            </p>
+          ) : null}
+
+          <button type="submit" className="login-page__submit" disabled={busy}>
+            {busy ? "Signing in…" : "Sign In"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

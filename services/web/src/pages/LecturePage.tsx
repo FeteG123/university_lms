@@ -94,17 +94,20 @@ function LecturePageContent({ courseId }: { courseId: number }) {
   }
 
   return (
-    <div>
+    <div className="page-stack">
       {err ? <p className="err">{err}</p> : null}
-      <div className="card" style={{ marginBottom: "1rem" }}>
+      <div className="card">
         <h2>Live lecture — course {courseId}</h2>
-        <p className="muted">
-          PostgreSQL history · WebSocket + Redis pub/sub · <span className="mono">{status}</span>
+        <p className="card-lead">
+          Real-time classroom chat.{" "}
+          <span className={status === "Connected" ? "status-badge status-badge--live" : "status-badge"}>
+            {status}
+          </span>
         </p>
       </div>
       <div className="card">
         <h2>Room chat</h2>
-        <div className="chat" style={{ marginTop: "0.75rem" }}>
+        <div className="chat">
           <div className="chat-log" ref={logRef}>
             {lines.length === 0 ? <p className="muted">No messages yet.</p> : null}
             {lines.map((ln) => (
@@ -121,9 +124,9 @@ function LecturePageContent({ courseId }: { courseId: number }) {
           </form>
         </div>
       </div>
-      <p style={{ marginTop: "1rem" }}>
-        <Link to={`/courses/${courseId}`}>← Back to course</Link>
-      </p>
+      <Link to={`/courses/${courseId}`} className="back-link">
+        ← Back to course
+      </Link>
     </div>
   );
 }

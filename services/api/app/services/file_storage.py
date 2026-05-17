@@ -50,6 +50,14 @@ def absolute_path(relative: str) -> Path:
     return storage_root() / relative
 
 
+def delete_submission_file(relative: str | None) -> None:
+    if not relative:
+        return
+    path = absolute_path(relative)
+    if path.is_file():
+        path.unlink(missing_ok=True)
+
+
 def submission_has_file(sub: Submission) -> bool:
     return bool(sub.file_path and sub.file_name)
 

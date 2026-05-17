@@ -93,15 +93,11 @@ function AdminUsersPageContent() {
   }
 
   return (
-    <div>
+    <div className="page-stack">
       {err ? <p className="err">{err}</p> : null}
-      {ok ? (
-        <p className="muted" style={{ color: "var(--ok)" }}>
-          {ok}
-        </p>
-      ) : null}
+      {ok ? <p className="ok-msg">{ok}</p> : null}
 
-      <div className="card" style={{ marginBottom: "1rem" }}>
+      <div className="card">
         <h2>Add user</h2>
         <p className="muted" style={{ marginTop: 0 }}>
           New accounts are stored in PostgreSQL with a bcrypt password hash (minimum 8 characters).
@@ -187,9 +183,9 @@ function AdminUsersPageContent() {
         ) : null}
       </div>
 
-      <p style={{ marginTop: "1rem" }}>
-        <Link to="/">← Courses</Link>
-      </p>
+      <Link to="/" className="back-link">
+        ← Courses
+      </Link>
     </div>
   );
 }

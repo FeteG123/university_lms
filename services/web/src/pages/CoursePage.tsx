@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { apiGet, apiPost, type Assignment, type CourseDetail } from "../api";
+import { apiGet, apiPost, type Assignment, type CourseDetail, type EnrolledStudent } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { usePositiveIntParam } from "../App";
 
@@ -16,18 +16,31 @@ function CoursePageContent({ courseId }: { courseId: number }) {
   const { user } = useAuth();
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [students, setStudents] = useState<EnrolledStudent[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const isLecturer = user?.role === "lecturer" || user?.role === "admin";
   const isStudent = user?.role === "student";
+  const isAdmin = user?.role === "admin";
+  const isCourseProfessor =
+    user?.role === "lecturer" && course != null && course.instructor_id === user.id;
+  const canViewRoster = isCourseProfessor || isAdmin;
 
   async function reload() {
     const c = await apiGet<CourseDetail>(`/courses/${courseId}`);
     setCourse(c);
-    if (c.is_enrolled) {
+    const professorOrEnrolled = c.is_enrolled;
+    if (professorOrEnrolled) {
       const a = await apiGet<Assignment[]>(`/courses/${courseId}/assignments`);
       setAssignments(a);
     } else {
       setAssignments([]);
+    }
+    const staff =
+      (user?.role === "lecturer" && c.instructor_id === user.id) || user?.role === "admin";
+    if (staff) {
+      const roster = await apiGet<EnrolledStudent[]>(`/courses/${courseId}/enrollments`);
+      setStudents(roster);
+    } else {
+      setStudents(null);
     }
   }
 
@@ -69,16 +82,19 @@ function CoursePageContent({ courseId }: { courseId: number }) {
   }
 
   return (
-    <div>
+    <div className="page-stack">
       {err ? <p className="err">{err}</p> : null}
       {!course ? <p className="muted">Loading…</p> : null}
       {course ? (
         <>
-          <div className="card" style={{ marginBottom: "1rem" }}>
+          <div className="card">
             <h2>
               {course.code} — {course.title}
             </h2>
             {course.description ? <p>{course.description}</p> : null}
+            <p className="muted" style={{ margin: "0.5rem 0 0" }}>
+              Professor: <strong>{course.instructor_name}</strong>
+            </p>
             <div className="row" style={{ marginTop: "1rem" }}>
               {isStudent && !course.is_enrolled ? (
                 <p className="muted" style={{ margin: 0 }}>
@@ -97,7 +113,7 @@ function CoursePageContent({ courseId }: { courseId: number }) {
             </div>
           </div>
           {isStudent ? (
-            <div className="card" style={{ marginBottom: "1rem" }}>
+            <div className="card">
               <h2>Enrollment</h2>
               {course.is_enrolled ? (
                 <p className="muted" style={{ margin: 0 }}>
@@ -108,6 +124,35 @@ function CoursePageContent({ courseId }: { courseId: number }) {
                   Enroll in this course
                 </button>
               )}
+            </div>
+          ) : null}
+          {canViewRoster ? (
+            <div className="card">
+              <h2>Enrolled students</h2>
+              {students === null ? <p className="muted">Loading roster…</p> : null}
+              {students && students.length === 0 ? (
+                <p className="muted">No students enrolled yet.</p>
+              ) : null}
+              {students && students.length > 0 ? (
+                <table className="grade-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Enrolled</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map((s) => (
+                      <tr key={s.user_id}>
+                        <td>{s.full_name}</td>
+                        <td>{s.email}</td>
+                        <td>{new Date(s.enrolled_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
             </div>
           ) : null}
           <div className="card">
@@ -127,13 +172,13 @@ function CoursePageContent({ courseId }: { courseId: number }) {
                 ))}
               </ul>
             ) : null}
-            {isLecturer ? <CreateAssignmentForm courseId={courseId} onCreated={reload} /> : null}
+            {isCourseProfessor ? <CreateAssignmentForm courseId={courseId} onCreated={reload} /> : null}
           </div>
         </>
       ) : null}
-      <p style={{ marginTop: "1rem" }}>
-        <Link to="/">← All courses</Link>
-      </p>
+      <Link to="/" className="back-link">
+        ← All courses
+      </Link>
     </div>
   );
 }
@@ -163,8 +208,8 @@ function CreateAssignmentForm({ courseId, onCreated }: { courseId: number; onCre
   }
 
   return (
-    <form onSubmit={submit} style={{ marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-      <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.95rem" }}>New assignment</h3>
+    <form onSubmit={submit} className="form-divider">
+      <h3>New assignment</h3>
       <div className="field">
         <label htmlFor="atitle">Title</label>
         <input id="atitle" value={title} onChange={(e) => setTitle(e.target.value)} required />
