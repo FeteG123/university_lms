@@ -1,6 +1,6 @@
-# R12 — Observability (Grafana LGTM + OpenTelemetry)
+# Observability (Grafana LGTM + OpenTelemetry)
 
-This stack satisfies **R12** (traces + logs + metrics in **one** UI: **Grafana**) using:
+Traces, logs, and metrics in **one** UI (**Grafana**):
 
 | Signal   | Backend    | How data gets in |
 |----------|------------|------------------|
@@ -105,10 +105,9 @@ API still exposes **`/metrics`** for local Prometheus scraping if you add it lat
 
 ---
 
-## Report checklist (R12)
+## Verification checklist
 
-- [ ] One paragraph: why Grafana bundles traces + logs + metrics for this project.  
-- [ ] Screenshot: Prometheus Explore with at least one HTTP metric.  
-- [ ] Screenshot: Tempo with a trace from a real LMS request.  
-- [ ] Screenshot: Loki with API/worker logs around the same time.  
-- [ ] Optional: short note on correlating trace id in logs (OTel logging format).
+- [ ] Prometheus Explore shows at least one HTTP metric (e.g. `http_requests_total`).
+- [ ] Tempo shows a trace from a real LMS request.
+- [ ] Loki shows API/worker logs around the same time window.
+- [ ] Optional: correlate trace id in logs (OTel logging format).

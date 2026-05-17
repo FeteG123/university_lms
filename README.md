@@ -1,6 +1,4 @@
-# LMS Lite (scaffold)
-
-**Rubric & deliverables tracker:** [`PROJECT_REQUIREMENTS_STATUS.md`](PROJECT_REQUIREMENTS_STATUS.md) (R1–R13, submission checklist, gaps).
+# University LMS Lite
 
 FastAPI backend with **PostgreSQL**, **Redis**, **Celery**, and a **React (Vite) web UI** served from the same app behind **Traefik** (two API replicas).
 
@@ -17,7 +15,7 @@ From the repository root:
 docker compose up -d --build
 ```
 
-### Deploy on a public VM (rubric URL)
+### Deploy on a public VM
 
 Use **Docker Compose + Traefik** on a Linux VM; see **[`docs/DEPLOY_VM.md`](docs/DEPLOY_VM.md)** (firewall, `.env`, Traefik `Host(...)`, optional `docker-compose.prod.yml` without dev bind mounts).
 
@@ -82,6 +80,14 @@ Get-Content scripts\seed.sql | docker compose exec -T postgres psql -U lms -d lm
 
 Then open `http://localhost/`, or call `GET http://localhost/api/courses` (expect `X-Cache: MISS` then `HIT` on refresh).
 
+**Demo accounts** (password `demo1234` for all):
+
+| Role | Email |
+|------|-------|
+| Admin | `admin@example.edu` |
+| Professor | `instructor@example.edu`, `prof2@example.edu`, `prof3@example.edu` |
+| Student | `student@example.edu` … `student5@example.edu` |
+
 ### Docker build: `short read … unexpected EOF`
 
 That usually means a **layer download from Docker Hub was cut off** (Wi‑Fi, VPN, or a bad cache entry). Try:
@@ -110,29 +116,24 @@ Copy `.env.example` to `.env`. Main variables:
 | `REDIS_URL` | Redis DB **0** — HTTP cache + lecture pub/sub |
 | `CELERY_BROKER_URL` | Redis DB **1** — Celery broker |
 | `CELERY_RESULT_BACKEND` | Redis DB **2** — Celery results |
-| `WORKER_ID` | **0–1023**, unique per API replica for Snowflake IDs (compose sets `1` / `2`) |
+| `WORKER_ID` | **0–1023**, unique per API replica for distributed submission IDs (compose sets `1` / `2`) |
 
-## Course rubric mapping (implementation pointers)
+## Features
 
-| ID | What this repo demonstrates |
-|----|-------------------------------|
-| R3 | Alembic migrations under `services/api/alembic/versions/`, `migrate` service, `scripts/seed.sql` |
-| R4 | REST + OpenAPI at `/docs` |
-| R5 | Redis for course-list cache + lecture pub/sub (not a second relational DB) |
-| R6 | `GET /api/courses` with `X-Cache: HIT`/`MISS`; `skip_cache=true` for before/after in your report |
-| R7 | WebSocket `/ws/lectures/{course_id}` |
-| R8–R9 | Traefik + two `api-*` services in `docker-compose.yml` |
-| R10 | Celery task `lms.analyze_submission` — document workflows with **BPMN in the PDF** |
-| R11 | `app/from_scratch/snowflake.py` + `app/snowflake_gen.py` used when creating submissions |
-| R12 | **Grafana LGTM** (profile `observability`): Tempo + Loki + Prometheus + OTel Collector; see [`docs/R12_OBSERVABILITY.md`](docs/R12_OBSERVABILITY.md) |
-| R13 | This file + Swagger |
+- **Courses & enrollment** — catalog, self-enroll, admin/professor enrollment management
+- **Assignments** — create, submit (text or file), due dates, plagiarism analysis (background worker)
+- **Course materials** — files, links, and notes per course
+- **Grades** — instructor grading, student view, CSV export per course
+- **Live lecture chat** — WebSocket rooms with persisted history (Postgres) and real-time fan-out (Redis)
+- **API** — REST under `/api`, interactive docs at `/docs`
+- **Caching** — Redis-backed course list (`X-Cache: HIT` / `MISS` on `GET /api/courses`)
 
 ## Enrollment
 
 - **Students:** Home shows **My courses** (enrolled only). Use **Catalog** to browse all courses → open a course → **Enroll** → assignments, materials, lecture chat, and grades unlock.
 - **Lecturers / admins:** Can enroll a specific user with `POST /api/courses/{course_id}/enrollments` and body `{"user_id": <id>}` (Swagger: try it out).
 
-## Observability (R12)
+## Observability
 
 Optional **Grafana** stack (traces in **Tempo**, logs in **Loki**, metrics in **Prometheus**, OTLP via **OpenTelemetry Collector**):
 
@@ -147,11 +148,7 @@ Optional **Grafana** stack (traces in **Tempo**, logs in **Loki**, metrics in **
 
 3. Open **http://localhost:3000** (Grafana; default `admin`/`admin` unless overridden).
 
-Full steps, ports, and **PDF screenshot checklist**: [`docs/R12_OBSERVABILITY.md`](docs/R12_OBSERVABILITY.md).
-
-## From-scratch component (R11)
-
-Source: `services/api/app/from_scratch/snowflake.py` — integrated via `POST /assignments/{id}/submissions` (`public_id` field).
+Setup guide: [`docs/R12_OBSERVABILITY.md`](docs/R12_OBSERVABILITY.md).
 
 ## Contributor notes
 
@@ -170,7 +167,7 @@ Source: `services/api/app/from_scratch/snowflake.py` — integrated via `POST /a
 
 ### 0.5.0
 
-- R12: OpenTelemetry traces (FastAPI + SQLAlchemy + Celery when OTLP env set), Prometheus `/metrics`, Docker Compose profile **`observability`** (Grafana, Tempo, Loki, Prometheus, OTel Collector, Promtail). Guide: `docs/R12_OBSERVABILITY.md`.
+- OpenTelemetry traces (FastAPI + SQLAlchemy + Celery when OTLP env set), Prometheus `/metrics`, Docker Compose profile **`observability`** (Grafana, Tempo, Loki, Prometheus, OTel Collector, Promtail).
 
 ### 0.4.0
 

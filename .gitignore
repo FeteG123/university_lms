@@ -33,5 +33,9 @@ build/
 *.log
 *.zip
 
-# Obsidian (keep viva-vault *.md only)
-docs/viva-vault/.obsidian/
+# Internal / local-only (not for public repo)
+docs/viva-vault/
+docs/viva-vault.zip
+PROJECT_REQUIREMENTS_STATUS.md
+FUNCTIONAL_SPEC.md
+DEMO_ACCOUNTS.md
