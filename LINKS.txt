@@ -1,7 +1,7 @@
 Deployed URL: https://university-lms.mooo.com
 GitHub URL: https://github.com/FeteG123/university_lms
 Team:
-- Person 1 - Data model, migrations
-- Person 2 - REST API, WebSocket
-- Person 3 - Redis, Celery pipeline
-- Person 4 - Infrastructure, rate limiter, observability
+Begmatova Gulbara U2310056. Data&Backend Core
+Davranov Davrabek U2310069. API&Non-REST Protocol
+Jo'rayeva Jasmina U2310124. Frontend&Data Layer
+Djurayeva Iroda U2310072. Infrastructure&Observability
