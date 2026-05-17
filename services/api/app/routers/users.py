@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth import roles
@@ -67,8 +67,16 @@ def _ensure_not_last_admin(db: Session, target: User, new_role: str | None, new_
 def list_users(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(roles.ADMIN)),
+    q: str | None = Query(None, min_length=1, max_length=100, description="Search email or full name."),
+    role: str | None = Query(None, pattern="^(student|lecturer|admin)$"),
 ) -> list[User]:
-    stmt = select(User).order_by(User.id.asc()).limit(500)
+    stmt = select(User)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(or_(User.email.ilike(term), User.full_name.ilike(term)))
+    if role:
+        stmt = stmt.where(User.role == role)
+    stmt = stmt.order_by(User.id.asc()).limit(500)
     return list(db.scalars(stmt))
 
 

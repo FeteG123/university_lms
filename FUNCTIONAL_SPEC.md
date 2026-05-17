@@ -12,7 +12,7 @@ Full enterprise features (content modules, email verification, rubrics, admin an
 | Area | Features |
 |------|----------|
 | **Auth** | Login, JWT, roles: `student`, `lecturer`, `admin` |
-| **Courses** | Create, list (role-filtered), view, enroll self |
+| **Courses** | Create, list (role-filtered), search, view, enroll self; **course materials** (file/link/note) |
 | **Assignments** | Create (lecturer), text submit (student), deadlines |
 | **Plagiarism** | Celery batch, status + score on submission |
 | **Chat** | WebSocket lecture room per course (JWT) |
@@ -61,6 +61,7 @@ Full enterprise features (content modules, email verification, rubrics, admin an
 | `assignments` | course_id, title, due_at |
 | `submissions` | assignment_id, student_id, body_text, plagiarism_*, public_id |
 | `grades` | submission_id (unique), score, feedback, graded_by |
+| `course_materials` | course_id, kind (file/link/note), file metadata or URL or body_text, created_by_id |
 
 See Alembic migrations under `services/api/alembic/versions/`.
 
@@ -72,7 +73,9 @@ See Alembic migrations under `services/api/alembic/versions/`.
 |--------|------|-----|
 | POST | `/api/auth/login` | Public |
 | GET | `/api/auth/me` | Authenticated |
-| GET/POST | `/api/courses` | Auth |
+| GET/POST | `/api/courses` | Auth (`?q=` search; students: `?catalog=true`) |
+| GET/POST/DELETE | `/api/courses/{id}/materials` | Enrolled / professor / admin |
+| GET | `/api/courses/{id}/materials/{mid}/file` | Download file material |
 | POST | `/api/courses/{id}/enrollments` | Student (self) / lecturer |
 | GET/POST | `/api/courses/{id}/assignments` | Auth |
 | POST | `/api/assignments/{id}/submissions` | Student |

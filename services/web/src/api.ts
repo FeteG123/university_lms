@@ -105,9 +105,15 @@ export type Course = {
   description: string | null;
   instructor_id: number;
   instructor_name: string;
+  max_enrollment: number;
+  enrollment_count: number;
 };
 
+/** From GET /courses — is_enrolled set when student uses ?catalog=true */
+export type CourseListItem = Course & { is_enrolled?: boolean | null };
+
 export type EnrolledStudent = {
+  enrollment_id: number;
   user_id: number;
   email: string;
   full_name: string;
@@ -115,7 +121,7 @@ export type EnrolledStudent = {
 };
 
 /** From GET /courses/{id} — includes self-enrollment state for students. */
-export type CourseDetail = Course & { is_enrolled: boolean };
+export type CourseDetail = Course & { is_enrolled: boolean; is_full: boolean };
 
 export type Assignment = {
   id: number;
@@ -124,6 +130,26 @@ export type Assignment = {
   description: string | null;
   due_at: string | null;
 };
+
+export type CourseMaterial = {
+  id: number;
+  course_id: number;
+  title: string;
+  description: string | null;
+  kind: "file" | "link" | "note";
+  body_text: string | null;
+  external_url: string | null;
+  file_name: string | null;
+  file_size_bytes: number | null;
+  created_by_id: number;
+  created_by_name: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export function materialFileUrl(courseId: number, materialId: number): string {
+  return `${prefix}/courses/${courseId}/materials/${materialId}/file`;
+}
 
 /** GET /assignments/{id} — includes instructor_id for grading permissions. */
 export type AssignmentContext = {

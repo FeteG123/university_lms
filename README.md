@@ -129,7 +129,7 @@ Copy `.env.example` to `.env`. Main variables:
 
 ## Enrollment
 
-- **Students:** Home lists the **course catalog**. Open a course → **Enroll in this course** → then assignments, lecture chat, and grades unlock.
+- **Students:** Home shows **My courses** (enrolled only). Use **Catalog** to browse all courses → open a course → **Enroll** → assignments, materials, lecture chat, and grades unlock.
 - **Lecturers / admins:** Can enroll a specific user with `POST /api/courses/{course_id}/enrollments` and body `{"user_id": <id>}` (Swagger: try it out).
 
 ## Observability (R12)
@@ -160,6 +160,13 @@ Source: `services/api/app/from_scratch/snowflake.py` — integrated via `POST /a
 - **Gateway:** Traefik static + dynamic files under `infra/traefik/`.
 
 ## Changelog
+
+### 0.6.0
+
+- Course **materials** (professor/admin): upload files, external links, text notes (`course_materials` table).
+- **Search** on courses (`?q=`) and admin users list (`?q=`, `?role=`).
+- Student **My courses** vs **Catalog**; admin enroll/unenroll and professor reassignment on course page.
+- Assignment **due dates** in professor UI (enforced on submit).
 
 ### 0.5.0
 

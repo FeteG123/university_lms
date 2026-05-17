@@ -49,6 +49,8 @@ This file tracks **submission deliverables**, **R1–R13**, **report-only items*
 | Scenario idea | In codebase? |
 |---------------|----------------|
 | Courses, assignments, submissions | Yes |
+| Course materials (professor upload) | Yes — `course_materials` table, file/link/note |
+| Course & user search | Yes — `GET /courses?q=`, `GET /users?q=` |
 | Live-lecture chat | Yes (Postgres history + WS + Redis pub/sub) |
 | Plagiarism-scan batch | Yes (heuristic Celery task) |
 | **Grade export** | **Yes** | `GET /api/courses/{id}/grades/export` (CSV); grades UI |
@@ -69,7 +71,10 @@ This file tracks **submission deliverables**, **R1–R13**, **report-only items*
 | Grades + CSV export | **Done** |
 | Instructor grade on assignment page | **Done** |
 | Admin: list / create / deactivate / reactivate users | **Done** |
-| Content modules / notifications / admin panel | **Not started** (Tier 3) |
+| Course materials (files, links, notes) | **Done** |
+| Admin: enroll / unenroll / reassign professor | **Done** |
+| Search courses & users | **Done** |
+| Content modules (versioned PDF/PPT) / notifications | **Not started** (Tier 3) |
 
 **Demo logins** (password `demo1234`): `student@example.edu`, `instructor@example.edu`, `admin@example.edu`
 

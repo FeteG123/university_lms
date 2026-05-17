@@ -11,13 +11,13 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.redis_client import get_redis
-from app.routers import assignments, auth, courses, grades, submissions, users
+from app.routers import assignments, auth, courses, grades, materials, submissions, users
 from app.spa_static import SpaStaticFiles
 from app.ws.lecture import router as ws_router
 
 app = FastAPI(
     title="LMS Lite API",
-    version="0.5.0",
+    version="0.6.0",
     description=(
         "University LMS-lite: FastAPI + PostgreSQL + Redis behind Traefik. "
         "REST under /api; SPA served at /."
@@ -77,6 +77,7 @@ api = APIRouter(prefix="/api")
 api.include_router(auth.router)
 api.include_router(users.router)
 api.include_router(courses.router)
+api.include_router(materials.router)
 api.include_router(assignments.router)
 api.include_router(submissions.router)
 api.include_router(grades.router)

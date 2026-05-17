@@ -1,12 +1,16 @@
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
-import { BrandIcon } from "./components/BrandIcon";
+import { AppLayout } from "./components/AppLayout";
 import { CoursesPage } from "./pages/CoursesPage";
 import { CoursePage } from "./pages/CoursePage";
 import { AssignmentPage } from "./pages/AssignmentPage";
 import { LecturePage } from "./pages/LecturePage";
 import { GradesPage } from "./pages/GradesPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { AdminCreateUserPage } from "./pages/AdminCreateUserPage";
+import { AdminCreateCoursePage } from "./pages/AdminCreateCoursePage";
+import { CreateAssignmentPage } from "./pages/CreateAssignmentPage";
+import { CreateMaterialPage } from "./pages/CreateMaterialPage";
 import { LoginPage } from "./pages/LoginPage";
 import "./App.css";
 
@@ -36,7 +40,6 @@ function Protected({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const isLoginPage = pathname === "/login";
 
@@ -59,42 +62,18 @@ export default function App() {
       </div>
 
       <div className="app-shell__inner">
-        <header className="top">
-          <Link to="/" className="brand">
-            <span className="brand-mark">
-              <BrandIcon size={20} />
-            </span>
-            Student LMS
-          </Link>
-          <nav className="nav">
-            {user ? (
-              <>
-                <span className="nav-user">
-                  {user.full_name} · {user.role}
-                </span>
-                <NavLink to="/" end className={({ isActive }) => (isActive ? "nav-active" : undefined)}>
-                  Courses
-                </NavLink>
-                {user.role === "admin" ? (
-                  <NavLink to="/admin/users" className={({ isActive }) => (isActive ? "nav-active" : undefined)}>
-                    Users
-                  </NavLink>
-                ) : null}
-                <button type="button" className="btn" onClick={logout}>
-                  Log out
-                </button>
-              </>
-            ) : null}
-            <a href="/docs" target="_blank" rel="noreferrer">
-              API docs
-            </a>
-          </nav>
-        </header>
-
-        <main className="main">
+        <AppLayout>
           <Routes>
             <Route
               path="/"
+              element={
+                <Protected>
+                  <CoursesPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/catalog"
               element={
                 <Protected>
                   <CoursesPage />
@@ -126,6 +105,22 @@ export default function App() {
               }
             />
             <Route
+              path="/courses/:courseId/assignments/new"
+              element={
+                <Protected>
+                  <CreateAssignmentPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/courses/:courseId/materials/new"
+              element={
+                <Protected>
+                  <CreateMaterialPage />
+                </Protected>
+              }
+            />
+            <Route
               path="/assignments/:assignmentId"
               element={
                 <Protected>
@@ -141,10 +136,26 @@ export default function App() {
                 </Protected>
               }
             />
+            <Route
+              path="/admin/users/new"
+              element={
+                <Protected>
+                  <AdminCreateUserPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/courses/new"
+              element={
+                <Protected>
+                  <AdminCreateCoursePage />
+                </Protected>
+              }
+            />
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
+        </AppLayout>
       </div>
     </div>
   );

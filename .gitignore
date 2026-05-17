@@ -21,9 +21,17 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+.cursor/
+
+# Runtime data (Docker volumes / local uploads)
+data/
 
 # Build / caches
 **/dist
 services/web/node_modules
 build/
 *.log
+*.zip
+
+# Obsidian (keep viva-vault *.md only)
+docs/viva-vault/.obsidian/

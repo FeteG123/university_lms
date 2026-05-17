@@ -29,21 +29,22 @@ ON CONFLICT (email) DO UPDATE SET
 -- ---------------------------------------------------------------------------
 -- Courses (6 courses; 4 with assignments, 2 without)
 -- ---------------------------------------------------------------------------
-INSERT INTO courses (code, title, description, instructor_id)
-SELECT v.code, v.title, v.description, u.id
+INSERT INTO courses (code, title, description, instructor_id, max_enrollment)
+SELECT v.code, v.title, v.description, u.id, v.max_enrollment
 FROM (VALUES
-  ('CS301', 'Database Systems', 'Relational design, SQL, and the group LMS project.', 'instructor@example.edu'),
-  ('CS210', 'Data Structures', 'Lists, trees, graphs, and complexity analysis.', 'prof2@example.edu'),
-  ('MATH201', 'Linear Algebra', 'Vectors, matrices, eigenvalues  - no coursework portal yet.', 'prof2@example.edu'),
-  ('EE101', 'Circuit Analysis', 'DC circuits, Kirchhoff laws, and lab reports.', 'prof3@example.edu'),
-  ('CS401', 'Capstone Project', 'Team software project with milestones and demo.', 'prof3@example.edu'),
-  ('HIST105', 'Modern World History', 'Lecture-only survey course for enrollment demos.', 'instructor@example.edu')
-) AS v(code, title, description, instructor_email)
+  ('CS301', 'Database Systems', 'Relational design, SQL, and the group LMS project.', 'instructor@example.edu', 30),
+  ('CS210', 'Data Structures', 'Lists, trees, graphs, and complexity analysis.', 'prof2@example.edu', 25),
+  ('MATH201', 'Linear Algebra', 'Vectors, matrices, eigenvalues  - no coursework portal yet.', 'prof2@example.edu', 3),
+  ('EE101', 'Circuit Analysis', 'DC circuits, Kirchhoff laws, and lab reports.', 'prof3@example.edu', 20),
+  ('CS401', 'Capstone Project', 'Team software project with milestones and demo.', 'prof3@example.edu', 15),
+  ('HIST105', 'Modern World History', 'Lecture-only survey course for enrollment demos.', 'instructor@example.edu', 50)
+) AS v(code, title, description, instructor_email, max_enrollment)
 JOIN users u ON u.email = v.instructor_email
 ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   description = EXCLUDED.description,
-  instructor_id = EXCLUDED.instructor_id;
+  instructor_id = EXCLUDED.instructor_id,
+  max_enrollment = EXCLUDED.max_enrollment;
 
 -- ---------------------------------------------------------------------------
 -- Enrollments
@@ -183,4 +184,34 @@ JOIN users u ON u.email = v.sender_email
 WHERE NOT EXISTS (
   SELECT 1 FROM chat_messages m
   WHERE m.room_id = r.id AND m.sender_id = u.id AND m.content = v.content
+);
+
+-- ---------------------------------------------------------------------------
+-- Course materials (notes and links)
+-- ---------------------------------------------------------------------------
+INSERT INTO course_materials (
+  course_id, title, description, kind, body_text, external_url, created_by_id, sort_order
+)
+SELECT c.id, v.title, v.description, v.kind, v.body_text, v.external_url, u.id, v.sort_order
+FROM (VALUES
+  ('CS301', 'Syllabus overview', 'Weekly topics and grading policy', 'note',
+   'Week 1: ER modeling. Week 2: SQL. Week 3: Transactions. Project milestones align with assignments.',
+   NULL, 1),
+  ('CS301', 'PostgreSQL documentation', 'Official reference', 'link', NULL,
+   'https://www.postgresql.org/docs/', 2),
+  ('CS210', 'BST lecture slides', 'Supplement for Homework 3', 'link', NULL,
+   'https://en.wikipedia.org/wiki/Binary_search_tree', 1),
+  ('CS401', 'Capstone rubric', 'Grading criteria for final demo', 'note',
+   'Demo: 40%, Code quality: 30%, Documentation: 20%, Team participation: 10%.',
+   NULL, 1)
+) AS v(course_code, title, description, kind, body_text, external_url, sort_order)
+JOIN courses c ON c.code = v.course_code
+JOIN users u ON u.email = CASE v.course_code
+  WHEN 'CS301' THEN 'instructor@example.edu'
+  WHEN 'CS210' THEN 'prof2@example.edu'
+  ELSE 'prof3@example.edu'
+END
+WHERE NOT EXISTS (
+  SELECT 1 FROM course_materials m
+  WHERE m.course_id = c.id AND m.title = v.title
 );
