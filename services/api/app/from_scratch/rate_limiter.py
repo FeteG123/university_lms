@@ -6,8 +6,8 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-BUCKET_CAPACITY = 100   # max tokens per client (matches NFR: 100 req/min)
-REFILL_RATE = 100 / 60  # tokens per second (~1.67/sec)
+BUCKET_CAPACITY = 100
+REFILL_RATE = 100 / 60
 
 class TokenBucket:
     def __init__(self, capacity: int, refill_rate: float):
